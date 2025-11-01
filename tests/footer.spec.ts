@@ -58,6 +58,9 @@ test.describe('Footer', () => {
     // Subscribe first time
     await footerPage.subscribeToNewsletter(duplicateEmail);
     
+    // Wait for success notification to disappear
+    await footerPage.waitForNotificationToDisappear();
+    
     // Subscribe again with same email
     await footerPage.subscribeToNewsletter(duplicateEmail);
     

@@ -59,7 +59,11 @@ export class WeemFooterPage extends BasePage {
     const emailInput = this.locators.byPlaceholder('Email');
     await emailInput.scrollIntoViewIfNeeded();
     await this.fill(emailInput, email);
-    await emailInput.press('Enter');
+    
+    // Tab to the submit button and press Enter
+    await this.page.keyboard.press('Tab');
+    await this.page.keyboard.press('Enter');
+    
     await this.pause(3000);
   }
 
@@ -77,6 +81,13 @@ export class WeemFooterPage extends BasePage {
   async verifyNewsletterError(): Promise<boolean> {
     const errorMessage = this.page.getByText(/already exists/i);
     return await this.isVisible(errorMessage, 5000);
+  }
+
+  /**
+   * Wait for notification to disappear before next action
+   */
+  async waitForNotificationToDisappear(): Promise<void> {
+    await this.pause(2000);
   }
 
   /**
