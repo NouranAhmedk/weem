@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dir:*)",
+      "Bash(powershell -Command \"Get-ChildItem -Path ''e:\\Work\\ERAM\\Automation\\Weem\\page-objects'' -File | Select-Object Name\")",
+      "Bash(powershell -Command \"Get-ChildItem -Path ''e:\\Work\\ERAM\\Automation\\Weem\\tests'' -File | Select-Object Name\")",
+      "Bash(powershell:*)",
+      "Bash(npm test:*)",
+      "Bash(npx playwright test:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
