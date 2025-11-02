@@ -32,7 +32,8 @@ test.describe('Random Product Shopping Flow', () => {
 
     // Wait for OTP input and submit
     await registrationPage.waitForOTPInput();
-    await registrationPage.enterOTP(TEST_OTP); // Using test OTP from .env file      await registrationPage.clickVerifySubmit();
+    await registrationPage.enterOTP(TEST_OTP); // Using test OTP from .env file
+    await registrationPage.clickVerifySubmit();
 
     // Wait for registration to complete
     await page.waitForTimeout(2000);

@@ -8,11 +8,17 @@ dotenv.config({ path: path.resolve(__dirname, '../.env') });
 export const NODE_ENV = process.env.NODE_ENV || 'development';
 export const ENVIRONMENT = process.env.ENVIRONMENT || 'dev';
 
-// Base URL
+// Base URLs
 export const BASE_URL = process.env.BASE_URL || 'https://dev.weem.sa/en';
+export const API_BASE_URL = process.env.API_BASE_URL || 'https://dev.weem.eramapps.com/api';
+export const ADMIN_URL = process.env.ADMIN_URL || 'https://dev.weem.eramapps.com/admin';
 
 // Test Credentials
 export const TEST_OTP = process.env.TEST_OTP || '00000';
+
+// Admin Credentials
+export const ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'weemdev';
+export const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'weemdev';
 
 // Phone Number Generation
 export const PHONE_BASE = process.env.PHONE_BASE || '500000';

@@ -39,6 +39,20 @@ export class WeemHomePage extends BasePage {
   }
 
   /**
+   * Click Google Play download button
+   */
+  async clickGooglePlay(): Promise<void> {
+    await this.click(this.locators.byEramTestId('google-play-link'));
+  }
+
+  /**
+   * Click App Store download button
+   */
+  async clickAppStore(): Promise<void> {
+    await this.click(this.locators.byEramTestId('app-store-link'));
+  }
+
+  /**
    * Navigate to shop by category
    * @param categoryName - Category name or ID
    *
@@ -65,17 +79,16 @@ export class WeemHomePage extends BasePage {
 
   /**
    * Search for a product
-   * Includes explicit wait for search input to handle async loading
+   * NOTE: Search is part of the header (appears on all pages)
+   * Use headerPage.search() instead
+   * 
+   * @deprecated Use headerPage.search() instead
    */
   async searchProduct(productName: string): Promise<void> {
-    // Wait for search input to be visible (may load asynchronously)
+    // Kept for backward compatibility
     const searchInput = this.locators.byEramTestId('search-input');
     await this.waitForVisible(searchInput, 10000);
-
-    // Fill search query
     await this.fill(searchInput, productName);
-
-    // Click search button
     await this.click(this.locators.byEramTestId('search-button'));
   }
 

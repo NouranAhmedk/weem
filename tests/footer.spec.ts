@@ -1,10 +1,5 @@
 import { test, expect } from '../fixtures/test.fixtures';
-
-// Helper function to generate random email
-function generateRandomEmail(): string {
-  const randomString = Math.random().toString(36).substring(2, 10);
-  return `test${randomString}@example.com`;
-}
+import { generateRandomEmail } from '../utils/phone-number.utils';
 
 test.describe('Footer', () => {
   test.beforeEach(async ({ homePage }) => {
