@@ -75,6 +75,12 @@ export default defineConfig({
 
     // Slower navigation to help with loading times
     actionTimeout: 15000,
+
+    // Grant geolocation permissions automatically (for address/map tests)
+    permissions: ['geolocation'],
+
+    // Set a default geolocation (Riyadh, Saudi Arabia)
+    geolocation: { latitude: 24.7136, longitude: 46.6753 },
   },
 
   // Configure projects for major browsers

@@ -121,7 +121,58 @@ test.describe('Random Product Shopping Flow', () => {
   });
 
   /**
-   * Test 5: Complete checkout flow with random product
+   * Test 5: Share product
+   */
+  test('should share product successfully', async ({
+    homePage,
+    productsPage,
+    page
+  }) => {
+    // Navigate to product
+    await navigateToFirstCategory(homePage);
+    await selectFirstProduct(productsPage);
+    await page.waitForTimeout(1000);
+
+    // Click share button
+    const shareButton = page.locator('[data-eram-test-id="share-button"]');
+    await shareButton.click();
+    await page.waitForTimeout(500);
+
+    // Verify share modal appears
+    const shareModal = page.locator('[data-eram-test-id="share-modal"]');
+    await expect(shareModal).toBeVisible();
+  });
+
+  /**
+   * Test 6: Copy product link
+   */
+  test('should copy product link', async ({
+    homePage,
+    productsPage,
+    page
+  }) => {
+    // Navigate to product
+    await navigateToFirstCategory(homePage);
+    await selectFirstProduct(productsPage);
+    await page.waitForTimeout(1000);
+
+    // Click share button
+    const shareButton = page.locator('[data-eram-test-id="share-button"]');
+    await shareButton.click();
+    await page.waitForTimeout(500);
+
+    // Click copy link button
+    const copyLinkButton = page.locator('[data-eram-test-id="copy-link"]');
+    await copyLinkButton.click();
+    await page.waitForTimeout(500);
+
+    // Verify success message
+    const successMessage = page.getByText(/Copied|تم النسخ/i);
+    await expect(successMessage).toBeVisible();
+  });
+
+  /**
+   * Test 7: Complete checkout flow with random product
    */
   test('should proceed to checkout with cart items', async ({
     homePage,
