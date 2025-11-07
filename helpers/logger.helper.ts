@@ -131,6 +131,17 @@ export class Logger {
     try {
       fs.appendFileSync(this.config.logFilePath, message + '\n', 'utf8');
     } catch (error) {
+      const err = error as NodeJS.ErrnoException;
+      if (err && err.code === 'ENOENT') {
+        try {
+          this.ensureLogDirectory();
+          fs.appendFileSync(this.config.logFilePath, message + '\n', 'utf8');
+          return;
+        } catch (retryError) {
+          console.error('Failed to write to log file after retry:', retryError);
+          return;
+        }
+      }
       console.error('Failed to write to log file:', error);
     }
   }

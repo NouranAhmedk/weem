@@ -24,7 +24,7 @@ test.describe('Weem Homepage', () => {
     const randomCategory = categories[randomIndex];
     
     await randomCategory.waitFor({ state: 'visible', timeout: 5000 });
-    
+
     const isVisible = await randomCategory.isVisible();
     const isEnabled = await randomCategory.isEnabled();
     
@@ -35,7 +35,7 @@ test.describe('Weem Homepage', () => {
   test('should have Google Play link with correct href', async ({ page }) => {
     await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
     await page.waitForTimeout(500);
-    
+
     const googlePlayLink = page.locator('[data-eram-test-id="google-play-link"]');
     await expect(googlePlayLink).toBeVisible();
     
@@ -46,7 +46,7 @@ test.describe('Weem Homepage', () => {
   test('should have App Store link with correct href', async ({ page }) => {
     await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
     await page.waitForTimeout(500);
-    
+
     const appStoreLink = page.locator('[data-eram-test-id="app-store-link"]');
     await expect(appStoreLink).toBeVisible();
     

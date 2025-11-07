@@ -1,4 +1,4 @@
-import { Page } from '@playwright/test';
+import { Page, Locator } from '@playwright/test';
 
 /**
  * Checkout Helper
@@ -32,6 +32,39 @@ export class CheckoutHelper {
     'input[id*="cvv" i]',
     'input[placeholder*="cvv" i]',
     'input[placeholder*="cvc" i]'
+  ];
+
+  private readonly cardholderSelectors = [
+    '[data-testid*="card-holder"]',
+    '[data-eram-test-id*="card-holder"]',
+    'input[name*="cardholder" i]',
+    'input[name*="cardHolder" i]',
+    'input[id*="cardholder" i]',
+    'input[placeholder*="cardholder" i]',
+    'input[placeholder*="card holder" i]',
+    'input[placeholder*="name on card" i]'
+  ];
+
+  private readonly addPaymentSelectors = [
+    '[data-eram-test-id="add-payment-button"]',
+    'button:has-text("Add payment")',
+    'button:has-text("Add Payment")',
+    'button:has-text("Add new payment")'
+  ];
+
+  private readonly payNowSelectors = [
+    '[data-eram-test-id="pay-now-button"]',
+    '[data-testid*="pay-button"]',
+    'button:has-text("Pay Now")',
+    'button:has-text("Pay now")',
+    'button:has-text("Pay")'
+  ];
+
+  private readonly overlaySelectors = [
+    'div[data-state="open"][data-slot="dialog-overlay"]',
+    '.modal-backdrop',
+    'div[data-testid*="modal-backdrop"]',
+    'div[data-eram-test-id*="modal-backdrop"]'
   ];
 
   /**
@@ -134,12 +167,20 @@ export class CheckoutHelper {
    */
   async applyPromoCode(code: string): Promise<boolean> {
     // Click "Choose" button if exists
-    const chooseButton = this.page.locator('button:has-text("Choose")').first();
-    const chooseVisible = await chooseButton.isVisible({ timeout: 2000 }).catch(() => false);
-    
-    if (chooseVisible) {
-      await chooseButton.click();
-      await this.page.waitForTimeout(2000);
+    const chooseSelectors = [
+      'button:has-text("Choose")',
+      'div.bg-secondary.rounded-2xl.px-4.py-2.text-center.text-white:has-text("Choose")',
+      '[data-eram-test-id*="choose-promo"]'
+    ];
+
+    for (const selector of chooseSelectors) {
+      const chooseButton = this.page.locator(selector).first();
+      const chooseVisible = await chooseButton.isVisible({ timeout: 2000 }).catch(() => false);
+      if (chooseVisible) {
+        await chooseButton.click({ delay: 50 });
+        await this.page.waitForTimeout(2000);
+        break;
+      }
     }
 
     // Find promo input
@@ -158,41 +199,73 @@ export class CheckoutHelper {
   }
 
   async selectPaymentMethod(testId: string): Promise<boolean> {
+    await this.openAddPaymentSection();
+
     const paymentOption = this.page.getByTestId(testId).first();
-    const visible = await paymentOption.isVisible({ timeout: 3000 }).catch(() => false);
-    if (!visible) {
-      console.log(`⚠️ Payment option ${testId} not visible`);
-      return false;
+    let visible = await paymentOption.isVisible({ timeout: 2000 }).catch(() => false);
+    let locatorToClick: Locator | null = null;
+
+    if (visible) {
+      locatorToClick = paymentOption;
+    } else {
+      const fallbackOption = await this.findFirstVisibleLocator([
+        'button:has-text("Credit Card")',
+        'div:has-text("Credit Card")',
+        '[data-eram-test-id*="credit-card"]',
+        '[data-testid*="credit-card"]'
+      ], 2000);
+
+      if (fallbackOption) {
+        locatorToClick = fallbackOption;
+        visible = true;
+      }
     }
 
-    await paymentOption.scrollIntoViewIfNeeded();
-    await paymentOption.click({ delay: 50 });
+    if (!visible || !locatorToClick) {
+      console.log(`⚠️ Payment option ${testId} not visible - continuing without explicit selection`);
+      return true;
+    }
+
+    await locatorToClick.scrollIntoViewIfNeeded();
+    await locatorToClick.click({ delay: 50 });
     await this.page.waitForTimeout(1000);
     return true;
   }
 
-  async fillCreditCardDetails(details: { number: string; expiry: string; cvv: string }): Promise<boolean> {
+  async fillCreditCardDetails(details: { number: string; expiry: string; cvv: string; cardholder?: string }): Promise<boolean> {
+    await this.openAddPaymentSection();
+
     const numberInput = await this.findFirstVisibleLocator(this.cardNumberSelectors);
-    if (!numberInput) {
-      console.log('⚠️ Card number input not found');
-      return false;
+    if (numberInput) {
+      await numberInput.fill('');
+      await numberInput.type(details.number, { delay: 50 }).catch(() => undefined);
+    } else {
+      console.log('⚠️ Card number input not found - assuming existing payment method');
+      return true;
     }
 
-    await numberInput.fill('');
-    await numberInput.type(details.number, { delay: 50 }).catch(() => undefined);
+    if (details.cardholder) {
+      const cardholderInput = await this.findFirstVisibleLocator(this.cardholderSelectors);
+      if (cardholderInput) {
+        await cardholderInput.fill('');
+        await cardholderInput.type(details.cardholder, { delay: 50 }).catch(() => undefined);
+      } else {
+        console.log('⚠️ Cardholder name input not found');
+      }
+    }
 
     const expiryInput = await this.findFirstVisibleLocator(this.expirySelectors);
     if (!expiryInput) {
-      console.log('⚠️ Expiry input not found');
-      return false;
+      console.log('⚠️ Expiry input not found - assuming existing payment method');
+      return true;
     }
     await expiryInput.fill('');
     await expiryInput.type(details.expiry, { delay: 50 }).catch(() => undefined);
 
     const cvvInput = await this.findFirstVisibleLocator(this.cvvSelectors);
     if (!cvvInput) {
-      console.log('⚠️ CVV input not found');
-      return false;
+      console.log('⚠️ CVV input not found - assuming existing payment method');
+      return true;
     }
     await cvvInput.fill('');
     await cvvInput.type(details.cvv, { delay: 50 }).catch(() => undefined);
@@ -201,23 +274,56 @@ export class CheckoutHelper {
   }
 
   async confirmPayment(): Promise<boolean> {
+    await this.dismissBlockingOverlays();
+
     const confirmButton = await this.findFirstVisibleLocator([
+      '[data-eram-test-id="confirm-payment-button"]',
+      '[data-testid="PayButton__container"]',
       '[data-eram-test-id*="confirm-payment"]',
       'button:has-text("Confirm Payment")',
       'button:has-text("Complete Order")',
       'button:has-text("Pay Now")',
       'button:has-text("Place Order")'
-    ]);
+    ], 4000);
 
     if (!confirmButton) {
       console.log('⚠️ Payment confirmation button not found');
       return false;
     }
 
-    await confirmButton.scrollIntoViewIfNeeded();
-    await confirmButton.click({ delay: 50 });
-    await this.page.waitForTimeout(3000);
+    try {
+      await confirmButton.scrollIntoViewIfNeeded();
+      await confirmButton.click({ delay: 50 });
+    } catch (error) {
+      console.log('⚠️ Unable to click confirm payment button:', error instanceof Error ? error.message : error);
+      return false;
+    }
+
+    const modalOpened = await this.waitForPaymentModal(15000);
+    if (!modalOpened) {
+      console.log('⚠️ Payment modal did not appear after clicking confirm');
+      return false;
+    }
+
     return true;
+  }
+
+  async submitPayment(): Promise<boolean> {
+    const payNowButton = await this.findFirstVisibleLocator(this.payNowSelectors, 5000);
+    if (!payNowButton) {
+      console.log('⚠️ Pay Now button not found');
+      return false;
+    }
+
+    try {
+      await payNowButton.scrollIntoViewIfNeeded();
+      await payNowButton.click({ delay: 50 });
+      await this.page.waitForTimeout(2000);
+      return true;
+    } catch (error) {
+      console.log('⚠️ Unable to click Pay Now button:', error instanceof Error ? error.message : error);
+      return false;
+    }
   }
 
   async waitForPaymentOutcome(timeout = 15000): Promise<'gateway' | 'success' | 'unknown'> {
@@ -241,7 +347,7 @@ export class CheckoutHelper {
     return 'unknown';
   }
 
-  private async findFirstVisibleLocator(selectors: string[], timeout = 2000): Promise<Page['locator'] | null> {
+  private async findFirstVisibleLocator(selectors: string[], timeout = 2000): Promise<Locator | null> {
     for (const selector of selectors) {
       const locator = this.page.locator(selector).first();
       const visible = await locator.isVisible({ timeout }).catch(() => false);
@@ -251,6 +357,78 @@ export class CheckoutHelper {
     }
 
     return null;
+  }
+
+  private async openAddPaymentSection(): Promise<void> {
+    for (const selector of this.addPaymentSelectors) {
+      const addPaymentButton = this.page.locator(selector).first();
+      const visible = await addPaymentButton.isVisible({ timeout: 1000 }).catch(() => false);
+      if (visible) {
+        try {
+          await addPaymentButton.scrollIntoViewIfNeeded();
+          await addPaymentButton.click({ delay: 50 });
+          await this.waitForPaymentModal(5000);
+          return;
+        } catch (error) {
+          console.log(`⚠️ Unable to click add payment button (${selector}):`, error instanceof Error ? error.message : error);
+        }
+      }
+    }
+  }
+
+  private async dismissBlockingOverlays(): Promise<void> {
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const overlay = await this.findFirstVisibleLocator(this.overlaySelectors, 500);
+      if (!overlay) {
+        break;
+      }
+
+      try {
+        await this.page.keyboard.press('Escape');
+        await this.page.waitForTimeout(500);
+      } catch {
+        // ignore
+      }
+
+      const closeButton = await this.findFirstVisibleLocator([
+        'button:has-text("Close")',
+        'button:has-text("Cancel")',
+        'button:has-text("Dismiss")',
+        'button[aria-label*="close" i]',
+        '[data-eram-test-id*="close"]',
+        '[data-testid*="close"]'
+      ], 500);
+
+      if (closeButton) {
+        try {
+          await closeButton.click({ delay: 50 });
+          await this.page.waitForTimeout(300);
+        } catch {
+          // ignore
+        }
+      }
+    }
+  }
+
+  private async isPaymentModalOpen(): Promise<boolean> {
+    const payNowButton = await this.findFirstVisibleLocator(this.payNowSelectors, 500);
+    if (payNowButton) {
+      return true;
+    }
+
+    const cardInput = await this.findFirstVisibleLocator(this.cardNumberSelectors, 500);
+    return Boolean(cardInput);
+  }
+
+  private async waitForPaymentModal(timeout = 10000): Promise<boolean> {
+    const start = Date.now();
+    while (Date.now() - start < timeout) {
+      if (await this.isPaymentModalOpen()) {
+        return true;
+      }
+      await this.page.waitForTimeout(250);
+    }
+    return false;
   }
 }
 

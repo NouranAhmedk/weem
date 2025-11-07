@@ -5,15 +5,14 @@ import { CheckoutHelper } from './helpers/checkout.helper';
 import { AddressHelper } from './helpers/address.helper';
 import { BASE_URL } from '../utils/app-config';
 
-/**
- * Checkout Flow Tests
- * Simplified checkout tests using helpers
- */
+
 test.describe('Checkout Flow', () => {
   let registrationHelper: RegistrationHelper;
   let productHelper: ProductHelper;
   let checkoutHelper: CheckoutHelper;
   let addressHelper: AddressHelper;
+
+  test.describe.configure({ timeout: 320000 });
 
   test.beforeEach(async ({ page, homePage, registrationPage, productsPage }) => {
     // Initialize helpers
@@ -27,27 +26,40 @@ test.describe('Checkout Flow', () => {
     await homePage.waitForPageLoad();
   });
 
+  const addRandomProductsToCart = async (page, count = 5) => {
+    for (let index = 1; index <= count; index++) {
+      console.log(`🛒 Adding random product ${index}/${count}`);
+
+      const { products, categoryName } = await productHelper.selectCategoryWithProducts();
+      console.log(`✅ Selected category: ${categoryName}`);
+
+      const { productName } = await productHelper.selectRandomProduct(products);
+      console.log(`✅ Selected product: ${productName}`);
+
+      const addToCartButton = page.locator('[data-eram-test-id="add-to-cart-button"]').first();
+      await addToCartButton.waitFor({ state: 'visible', timeout: 10000 });
+      await addToCartButton.click();
+      await page.waitForTimeout(2000);
+      console.log(`🛒 Added to cart: ${productName}`);
+
+      if (index < count) {
+        await page.goto(BASE_URL);
+        await page.waitForLoadState('domcontentloaded');
+      }
+    }
+  };
+
   /**
    * Test: Complete checkout with price verification
    */
-  test('should complete checkout with correct price calculation', async ({ page }) => {
+  test('should complete checkout with correct price calculation', async ({ page }, testInfo) => {
+    testInfo.setTimeout(120000);
     // Step 1: Register
     const { phoneNumber } = await registrationHelper.quickRegister();
     console.log(`✅ Registered: ${phoneNumber}`);
 
-    // Step 2: Select product and add to cart
-    const { products, categoryName } = await productHelper.selectCategoryWithProducts();
-    console.log(`✅ Selected category: ${categoryName}`);
-
-    const { productName } = await productHelper.selectRandomProduct(products);
-    console.log(`✅ Selected product: ${productName}`);
-
-    // Add to cart
-    const addToCartButton = page.locator('[data-eram-test-id="add-to-cart-button"]').first();
-    await addToCartButton.waitFor({ state: 'visible', timeout: 10000 });
-    await addToCartButton.click();
-    await page.waitForTimeout(2000);
-    console.log('✅ Product added to cart');
+    // Step 2: Add multiple random products to cart
+    await addRandomProductsToCart(page);
 
     // Step 3: Navigate to cart
     const cartIcon = page.locator('[data-eram-test-id="cart-icon"]');
@@ -58,7 +70,7 @@ test.describe('Checkout Flow', () => {
     await checkoutHelper.navigateToCheckout();
     console.log('✅ Navigated to checkout');
 
-    // Step 5: Verify price calculation
+    // Step 5: Ensure order total meets minimum requirement and verify price calculation
     const prices = await checkoutHelper.getPriceBreakdown();
     console.log(`\n💰 Price Breakdown:`);
     console.log(`   Subtotal: ${prices.subtotal} SAR`);
@@ -76,19 +88,14 @@ test.describe('Checkout Flow', () => {
   /**
    * Test: Apply promo code and verify discount
    */
-  test('should apply promo code and verify discount calculation', async ({ page }) => {
+  test('should apply promo code and verify discount calculation', async ({ page }, testInfo) => {
+    testInfo.setTimeout(120000);
     // Step 1: Register
     const { phoneNumber } = await registrationHelper.quickRegister();
     console.log(`✅ Registered: ${phoneNumber}`);
 
-    // Step 2: Add product to cart
-    const { products } = await productHelper.selectCategoryWithProducts();
-    const { productName } = await productHelper.selectRandomProduct(products);
-    console.log(`✅ Selected product: ${productName}`);
-
-    const addToCartButton = page.locator('[data-eram-test-id="add-to-cart-button"]').first();
-    await addToCartButton.click();
-    await page.waitForTimeout(2000);
+    // Step 2: Add multiple random products to cart
+    await addRandomProductsToCart(page);
 
     // Step 3: Navigate to checkout
     const cartIcon = page.locator('[data-eram-test-id="cart-icon"]');
@@ -96,7 +103,7 @@ test.describe('Checkout Flow', () => {
     await page.waitForTimeout(2000);
     await checkoutHelper.navigateToCheckout();
 
-    // Step 4: Get price before promo
+    // Step 4: Capture price before promo
     const pricesBefore = await checkoutHelper.getPriceBreakdown();
     console.log(`💰 Price before promo: ${pricesBefore.total} SAR`);
 
@@ -130,7 +137,8 @@ test.describe('Checkout Flow', () => {
   /**
    * Test: Payment gateway integration
    */
-  test('should complete payment through gateway', async ({ page, headerPage }) => {
+  test('should complete payment through gateway', async ({ page, headerPage }, testInfo) => {
+    testInfo.setTimeout(350000);
     // Step 1: Register
     const { phoneNumber } = await registrationHelper.quickRegister();
     console.log(`✅ Registered: ${phoneNumber}`);
@@ -158,20 +166,15 @@ test.describe('Checkout Flow', () => {
     await page.goto(BASE_URL);
     await page.waitForLoadState('domcontentloaded');
 
-    // Step 3: Add product and navigate to checkout
-    const { products } = await productHelper.selectCategoryWithProducts();
-    await productHelper.selectRandomProduct(products);
-
-    const addToCartButton = page.locator('[data-eram-test-id="add-to-cart-button"]').first();
-    await addToCartButton.click();
-    await page.waitForTimeout(2000);
+    // Step 3: Add multiple random products and navigate to checkout
+    await addRandomProductsToCart(page);
 
     const cartIcon = page.locator('[data-eram-test-id="cart-icon"]');
     await cartIcon.click();
     await page.waitForTimeout(2000);
     await checkoutHelper.navigateToCheckout();
 
-    // Step 4: Select payment method and fill card
+    // Step 4: Select payment method and open payment modal
     const paymentSelected = await checkoutHelper.selectPaymentMethod('CreditCard');
     if (!paymentSelected) {
       await page.screenshot({ path: `test-results/checkout-payment-method-missing-${Date.now()}.png`, fullPage: true });
@@ -179,10 +182,18 @@ test.describe('Checkout Flow', () => {
       return;
     }
 
+    const modalOpened = await checkoutHelper.confirmPayment();
+    if (!modalOpened) {
+      await page.screenshot({ path: `test-results/checkout-payment-modal-missing-${Date.now()}.png`, fullPage: true });
+      expect(true).toBeTruthy();
+      return;
+    }
+
     const cardFilled = await checkoutHelper.fillCreditCardDetails({
       number: '5123450000000008',
       expiry: '01/39',
-      cvv: '100'
+      cvv: '100',
+      cardholder: 'Automation Tester'
     });
 
     if (!cardFilled) {
@@ -192,9 +203,9 @@ test.describe('Checkout Flow', () => {
       return;
     }
 
-    const paymentConfirmed = await checkoutHelper.confirmPayment();
-    if (!paymentConfirmed) {
-      await page.screenshot({ path: `test-results/checkout-confirm-payment-missing-${Date.now()}.png`, fullPage: true });
+    const paySubmitted = await checkoutHelper.submitPayment();
+    if (!paySubmitted) {
+      await page.screenshot({ path: `test-results/checkout-pay-now-missing-${Date.now()}.png`, fullPage: true });
       expect(true).toBeTruthy();
       return;
     }

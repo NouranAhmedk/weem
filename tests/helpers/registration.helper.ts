@@ -29,6 +29,8 @@ export class RegistrationHelper {
       console.log(`Registration attempt ${attempt}/${maxAttempts} - Phone: ${phone}`);
       
       try {
+        await this.dismissBlockingOverlays();
+        await this.page.waitForTimeout(250);
         // Open registration modal
         await this.registrationPage.clickRegisterButton();
         await this.page.waitForTimeout(1000);
@@ -87,11 +89,97 @@ export class RegistrationHelper {
    * Close any open modals
    */
   private async closeModal(): Promise<void> {
+    const closeSelectors = [
+      '[data-eram-test-id*="close"]',
+      '[data-testid*="close"]',
+      'button:has-text("Close")',
+      'button:has-text("Cancel")',
+      'button:has-text("Dismiss")',
+      'button:has-text("No")',
+      '[aria-label*="close" i]',
+      '.modal button[class*="close"]',
+      '.modal button svg',
+      '.modal-header button'
+    ];
+
+    const overlaySelectors = [
+      'div.fixed.top-0.right-0.bottom-0.left-0',
+      '.modal-backdrop',
+      '[data-eram-test-id*="modal-backdrop"]',
+      '[data-testid*="modal-backdrop"]'
+    ];
+
     try {
       await this.page.keyboard.press('Escape');
-      await this.page.waitForTimeout(1000);
+      await this.page.waitForTimeout(500);
     } catch {
-      // Ignore errors when closing modal
+      // Ignore errors when closing modal with keyboard
+    }
+
+    for (const selector of closeSelectors) {
+      const closeButton = this.page.locator(selector).first();
+      const visible = await closeButton.isVisible({ timeout: 500 }).catch(() => false);
+      if (visible) {
+        try {
+          await closeButton.click({ delay: 50 });
+          await this.page.waitForTimeout(500);
+        } catch (error) {
+          console.log(`⚠️ Unable to click close control (${selector}):`, error instanceof Error ? error.message : error);
+        }
+      }
+    }
+
+    for (const overlaySelector of overlaySelectors) {
+      const overlay = this.page.locator(overlaySelector).first();
+      for (let i = 0; i < 3; i++) {
+        const overlayVisible = await overlay.isVisible({ timeout: 500 }).catch(() => false);
+        if (!overlayVisible) {
+          break;
+        }
+        try {
+          await this.page.keyboard.press('Escape');
+          await this.page.waitForTimeout(300);
+        } catch {
+          // ignore
+        }
+      }
+    }
+  }
+
+  private async dismissBlockingOverlays(): Promise<void> {
+    const blockingSelectors = [
+      'div.fixed.top-0.right-0.bottom-0.left-0',
+      '.modal-backdrop',
+      '[data-eram-test-id*="modal-backdrop"]',
+      '[data-testid*="modal-backdrop"]'
+    ];
+
+    for (const selector of blockingSelectors) {
+      const overlay = this.page.locator(selector).first();
+      const visible = await overlay.isVisible({ timeout: 500 }).catch(() => false);
+      if (visible) {
+        await this.closeModal();
+      }
+    }
+
+    // Also attempt to close any cookie or announcement banners that may block interaction
+    const bannerSelectors = [
+      'button:has-text("Accept")',
+      'button:has-text("Got it")',
+      'button:has-text("Allow")'
+    ];
+
+    for (const selector of bannerSelectors) {
+      const button = this.page.locator(selector).first();
+      const visible = await button.isVisible({ timeout: 500 }).catch(() => false);
+      if (visible) {
+        try {
+          await button.click({ delay: 50 });
+          await this.page.waitForTimeout(300);
+        } catch {
+          // ignore
+        }
+      }
     }
   }
 }
