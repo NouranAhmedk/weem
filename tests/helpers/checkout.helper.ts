@@ -1,4 +1,4 @@
-import { Page, Locator } from '@playwright/test';
+import { Page, Locator, Frame } from '@playwright/test';
 
 /**
  * Checkout Helper
@@ -60,12 +60,22 @@ export class CheckoutHelper {
     'button:has-text("Pay")'
   ];
 
+  private readonly paymentFrameSelectors = [
+    'iframe[src*="pay"]',
+    'iframe[id*="pay"]',
+    'iframe[name*="pay"]',
+    'iframe[data-eram-test-id*="payment"]',
+    'iframe[data-testid*="payment"]'
+  ];
+
   private readonly overlaySelectors = [
     'div[data-state="open"][data-slot="dialog-overlay"]',
     '.modal-backdrop',
     'div[data-testid*="modal-backdrop"]',
     'div[data-eram-test-id*="modal-backdrop"]'
   ];
+
+  private paymentFrame: Frame | null = null;
 
   /**
    * Navigate to checkout page
@@ -167,19 +177,42 @@ export class CheckoutHelper {
    */
   async applyPromoCode(code: string): Promise<boolean> {
     // Click "Choose" button if exists
-    const chooseSelectors = [
+    const outerChooseSelectors = [
+      '[data-eram-test-id="choose-promo-code-button-text"]',
+      '[data-eram-test-id="choose-promo-code-button"]',
       'button:has-text("Choose")',
       'div.bg-secondary.rounded-2xl.px-4.py-2.text-center.text-white:has-text("Choose")',
       '[data-eram-test-id*="choose-promo"]'
     ];
 
-    for (const selector of chooseSelectors) {
-      const chooseButton = this.page.locator(selector).first();
-      const chooseVisible = await chooseButton.isVisible({ timeout: 2000 }).catch(() => false);
-      if (chooseVisible) {
-        await chooseButton.click({ delay: 50 });
-        await this.page.waitForTimeout(2000);
-        break;
+    const innerChooseSelectors = [
+      '[data-eram-test-id="apply-promo-code-button"]',
+      '[data-testid*="apply-promo"]',
+      'button[data-eram-test-id*="apply-promo"]',
+      'button:has-text("Choose")',
+      '[data-eram-test-id*="promo-option-choose"]'
+    ];
+
+    const outerChoose = await this.findFirstVisibleLocator(outerChooseSelectors, 2000);
+    if (outerChoose) {
+      try {
+        await outerChoose.scrollIntoViewIfNeeded();
+        await outerChoose.click({ delay: 50 });
+        await this.page.waitForTimeout(1500);
+      } catch {
+        // ignore click errors
+      }
+    }
+
+    // Promo modal may render in a dialog or iframe, attempt to click the inner choose/apply button
+    const innerChoose = await this.findFirstVisibleLocator(innerChooseSelectors, 4000);
+    if (innerChoose) {
+      try {
+        await innerChoose.scrollIntoViewIfNeeded();
+        await innerChoose.click({ delay: 50 });
+        await this.page.waitForTimeout(1000);
+      } catch {
+        // ignore click errors
       }
     }
 
@@ -222,7 +255,6 @@ export class CheckoutHelper {
     }
 
     if (!visible || !locatorToClick) {
-      console.log(`⚠️ Payment option ${testId} not visible - continuing without explicit selection`);
       return true;
     }
 
@@ -235,37 +267,34 @@ export class CheckoutHelper {
   async fillCreditCardDetails(details: { number: string; expiry: string; cvv: string; cardholder?: string }): Promise<boolean> {
     await this.openAddPaymentSection();
 
-    const numberInput = await this.findFirstVisibleLocator(this.cardNumberSelectors);
+    await this.waitForPaymentModal(15000);
+
+    const numberInput = await this.findFirstVisibleLocator(this.cardNumberSelectors, 5000, true);
     if (numberInput) {
       await numberInput.fill('');
       await numberInput.type(details.number, { delay: 50 }).catch(() => undefined);
     } else {
-      console.log('⚠️ Card number input not found - assuming existing payment method');
-      return true;
+      return false;
     }
 
     if (details.cardholder) {
-      const cardholderInput = await this.findFirstVisibleLocator(this.cardholderSelectors);
+      const cardholderInput = await this.findFirstVisibleLocator(this.cardholderSelectors, 3000, true);
       if (cardholderInput) {
         await cardholderInput.fill('');
         await cardholderInput.type(details.cardholder, { delay: 50 }).catch(() => undefined);
-      } else {
-        console.log('⚠️ Cardholder name input not found');
       }
     }
 
-    const expiryInput = await this.findFirstVisibleLocator(this.expirySelectors);
+    const expiryInput = await this.findFirstVisibleLocator(this.expirySelectors, 3000, true);
     if (!expiryInput) {
-      console.log('⚠️ Expiry input not found - assuming existing payment method');
-      return true;
+      return false;
     }
     await expiryInput.fill('');
     await expiryInput.type(details.expiry, { delay: 50 }).catch(() => undefined);
 
-    const cvvInput = await this.findFirstVisibleLocator(this.cvvSelectors);
+    const cvvInput = await this.findFirstVisibleLocator(this.cvvSelectors, 3000, true);
     if (!cvvInput) {
-      console.log('⚠️ CVV input not found - assuming existing payment method');
-      return true;
+      return false;
     }
     await cvvInput.fill('');
     await cvvInput.type(details.cvv, { delay: 50 }).catch(() => undefined);
@@ -278,7 +307,6 @@ export class CheckoutHelper {
 
     const confirmButton = await this.findFirstVisibleLocator([
       '[data-eram-test-id="confirm-payment-button"]',
-      '[data-testid="PayButton__container"]',
       '[data-eram-test-id*="confirm-payment"]',
       'button:has-text("Confirm Payment")',
       'button:has-text("Complete Order")',
@@ -287,7 +315,6 @@ export class CheckoutHelper {
     ], 4000);
 
     if (!confirmButton) {
-      console.log('⚠️ Payment confirmation button not found');
       return false;
     }
 
@@ -295,13 +322,11 @@ export class CheckoutHelper {
       await confirmButton.scrollIntoViewIfNeeded();
       await confirmButton.click({ delay: 50 });
     } catch (error) {
-      console.log('⚠️ Unable to click confirm payment button:', error instanceof Error ? error.message : error);
       return false;
     }
 
     const modalOpened = await this.waitForPaymentModal(15000);
     if (!modalOpened) {
-      console.log('⚠️ Payment modal did not appear after clicking confirm');
       return false;
     }
 
@@ -309,9 +334,8 @@ export class CheckoutHelper {
   }
 
   async submitPayment(): Promise<boolean> {
-    const payNowButton = await this.findFirstVisibleLocator(this.payNowSelectors, 5000);
+    const payNowButton = await this.findFirstVisibleLocator(this.payNowSelectors, 5000, true);
     if (!payNowButton) {
-      console.log('⚠️ Pay Now button not found');
       return false;
     }
 
@@ -321,7 +345,6 @@ export class CheckoutHelper {
       await this.page.waitForTimeout(2000);
       return true;
     } catch (error) {
-      console.log('⚠️ Unable to click Pay Now button:', error instanceof Error ? error.message : error);
       return false;
     }
   }
@@ -347,18 +370,6 @@ export class CheckoutHelper {
     return 'unknown';
   }
 
-  private async findFirstVisibleLocator(selectors: string[], timeout = 2000): Promise<Locator | null> {
-    for (const selector of selectors) {
-      const locator = this.page.locator(selector).first();
-      const visible = await locator.isVisible({ timeout }).catch(() => false);
-      if (visible) {
-        return locator;
-      }
-    }
-
-    return null;
-  }
-
   private async openAddPaymentSection(): Promise<void> {
     for (const selector of this.addPaymentSelectors) {
       const addPaymentButton = this.page.locator(selector).first();
@@ -370,7 +381,7 @@ export class CheckoutHelper {
           await this.waitForPaymentModal(5000);
           return;
         } catch (error) {
-          console.log(`⚠️ Unable to click add payment button (${selector}):`, error instanceof Error ? error.message : error);
+          // Ignore click errors
         }
       }
     }
@@ -411,24 +422,79 @@ export class CheckoutHelper {
   }
 
   private async isPaymentModalOpen(): Promise<boolean> {
-    const payNowButton = await this.findFirstVisibleLocator(this.payNowSelectors, 500);
+    const payNowButton = await this.findFirstVisibleLocator(this.payNowSelectors, 500, true);
     if (payNowButton) {
       return true;
     }
 
-    const cardInput = await this.findFirstVisibleLocator(this.cardNumberSelectors, 500);
+    const cardInput = await this.findFirstVisibleLocator(this.cardNumberSelectors, 500, true);
     return Boolean(cardInput);
   }
 
-  private async waitForPaymentModal(timeout = 10000): Promise<boolean> {
+  private async waitForPaymentModal(timeout = 15000): Promise<boolean> {
     const start = Date.now();
     while (Date.now() - start < timeout) {
       if (await this.isPaymentModalOpen()) {
         return true;
       }
+      const frame = await this.getPaymentFrame(250);
+      if (frame) {
+        return true;
+      }
       await this.page.waitForTimeout(250);
     }
     return false;
+  }
+  private async findFirstVisibleLocator(selectors: string[], timeout = 2000, includePaymentFrame = false): Promise<Locator | null> {
+    for (const selector of selectors) {
+      const locator = this.page.locator(selector).first();
+      const visible = await locator.isVisible({ timeout }).catch(() => false);
+      if (visible) {
+        return locator;
+      }
+    }
+
+    if (!includePaymentFrame) {
+      return null;
+    }
+
+    const frame = await this.getPaymentFrame(timeout);
+    if (!frame) {
+      return null;
+    }
+
+    for (const selector of selectors) {
+      const locator = frame.locator(selector).first();
+      const visible = await locator.isVisible({ timeout }).catch(() => false);
+      if (visible) {
+        return locator;
+      }
+    }
+
+    return null;
+  }
+
+  private async getPaymentFrame(timeout = 2000): Promise<Frame | null> {
+    if (this.paymentFrame) {
+      return this.paymentFrame;
+    }
+
+    const start = Date.now();
+    while (Date.now() - start < timeout) {
+      for (const selector of this.paymentFrameSelectors) {
+        const frameHandle = await this.page.locator(selector).first().elementHandle({ timeout: 500 }).catch(() => null);
+        if (frameHandle) {
+          const contentFrame = await frameHandle.contentFrame();
+          if (contentFrame) {
+            this.paymentFrame = contentFrame;
+            return contentFrame;
+          }
+        }
+      }
+      await this.page.waitForTimeout(250);
+    }
+
+    return null;
   }
 }
 

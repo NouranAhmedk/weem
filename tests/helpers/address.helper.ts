@@ -8,6 +8,7 @@ export class AddressHelper {
   constructor(private page: Page) {}
 
   private readonly searchSelectors = [
+    '[data-eram-test-id="search-map-input"]',
     'input.pac-target-input',
     'input#search-input.pac-target-input',
     'input.pac-target-input[placeholder*="location" i]',
@@ -83,7 +84,7 @@ export class AddressHelper {
       await this.page.waitForTimeout(500);
     }
 
-    console.log('⚠️ Map search input not detected within timeout');
+    // console.log('⚠️ Map search input not detected within timeout');
     return false;
   }
 
@@ -94,7 +95,7 @@ export class AddressHelper {
     const searchInput = await this.findFirstVisibleLocator(this.searchSelectors);
 
     if (!searchInput) {
-      console.log('⚠️ Unable to locate map search input');
+      // console.log('⚠️ Unable to locate map search input');
       return false;
     }
 
@@ -113,7 +114,7 @@ export class AddressHelper {
     }
 
     // If no suggestion visible, rely on Enter action
-    console.log('⚠️ No suggestion element clicked, relying on Enter result');
+    // console.log('⚠️ No suggestion element clicked, relying on Enter result');
     return true;
   }
 
@@ -128,7 +129,7 @@ export class AddressHelper {
       return true;
     }
 
-    console.log('⚠️ Confirm location button not found');
+    // console.log('⚠️ Confirm location button not found');
     return false;
   }
 
@@ -144,7 +145,7 @@ export class AddressHelper {
     );
 
     if (!form) {
-      console.log('⚠️ Address form container not located');
+      // console.log('⚠️ Address form container not located');
       return false;
     }
 
@@ -154,7 +155,7 @@ export class AddressHelper {
     const inputCount = await fillableInputs.count();
 
     if (inputCount === 0) {
-      console.log('⚠️ No editable inputs detected inside address form');
+      // console.log('⚠️ No editable inputs detected inside address form');
       return false;
     }
 
@@ -189,7 +190,7 @@ export class AddressHelper {
     }
 
     if (!nameInput) {
-      console.log('⚠️ Unable to find address name input');
+      // console.log('⚠️ Unable to find address name input');
       return false;
     }
 
@@ -251,7 +252,7 @@ export class AddressHelper {
   async submitAddress(): Promise<boolean> {
     const submitButton = await this.findFirstVisibleLocator(this.submitSelectors);
     if (!submitButton) {
-      console.log('⚠️ Submit button not found');
+      // console.log('⚠️ Submit button not found');
       return false;
     }
 
@@ -291,7 +292,7 @@ export class AddressHelper {
       await this.page.waitForTimeout(500);
     }
 
-    console.log('⚠️ Success confirmation not detected');
+    // console.log('⚠️ Success confirmation not detected');
     return false;
   }
 
@@ -319,7 +320,7 @@ export class AddressHelper {
       await this.page.waitForTimeout(500);
     }
 
-    console.log(`⚠️ Saved address "${addressName}" not visible after submission`);
+    // console.log(`⚠️ Saved address "${addressName}" not visible after submission`);
     return false;
   }
 
@@ -329,44 +330,44 @@ export class AddressHelper {
   async addAddress(addressName: string, location: string, additionalDetails?: string): Promise<boolean> {
     const mapReady = await this.waitForMapToLoad();
     if (!mapReady) {
-      console.log('⚠️ Map search input not available when trying to add address');
+      // console.log('⚠️ Map search input not available when trying to add address');
       return false;
     }
 
     const searched = await this.searchAndSelectLocation(location);
     if (!searched) {
-      console.log('⚠️ Failed to search location while adding address');
+      // console.log('⚠️ Failed to search location while adding address');
       return false;
     }
 
     const confirmed = await this.confirmLocation();
     if (!confirmed) {
-      console.log('⚠️ Unable to confirm location while adding address');
+      // console.log('⚠️ Unable to confirm location while adding address');
       return false;
     }
 
     const filled = await this.fillAddressDetails(addressName, additionalDetails);
     if (!filled) {
-      console.log('⚠️ Unable to fill address form');
+      // console.log('⚠️ Unable to fill address form');
       return false;
     }
 
     const submitted = await this.submitAddress();
     if (!submitted) {
-      console.log('⚠️ Unable to submit address form');
+      // console.log('⚠️ Unable to submit address form');
       return false;
     }
 
     await this.waitForAddressesPage();
     const success = await this.waitForSuccess(addressName);
     if (!success) {
-      console.log('⚠️ Address success confirmation not detected');
+      // console.log('⚠️ Address success confirmation not detected');
       return true; // Continue flow even if success message isn't visible
     }
 
     const exists = await this.addressExists(addressName);
     if (!exists) {
-      console.log(`⚠️ Address ${addressName} not visible in saved list after submission`);
+      // console.log(`⚠️ Address ${addressName} not visible in saved list after submission`);
     }
 
     return true;
@@ -417,7 +418,7 @@ export class AddressHelper {
           }
         }
 
-        console.log(`Using selector: ${selector}`);
+        // console.log(`Using selector: ${selector}`);
         return locator;
       }
     }
@@ -450,7 +451,7 @@ export class AddressHelper {
       }
       await this.page.waitForTimeout(500);
     } catch (error) {
-      console.log(`⚠️ Unable to select "Other" address type: ${error instanceof Error ? error.message : error}`);
+      // console.log(`⚠️ Unable to select "Other" address type: ${error instanceof Error ? error.message : error}`);
     }
   }
 }

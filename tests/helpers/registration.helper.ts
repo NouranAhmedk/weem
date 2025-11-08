@@ -26,7 +26,6 @@ export class RegistrationHelper {
     
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       const phone = phoneNumber || generateRandomPhoneNumber();
-      console.log(`Registration attempt ${attempt}/${maxAttempts} - Phone: ${phone}`);
       
       try {
         await this.dismissBlockingOverlays();
@@ -48,13 +47,11 @@ export class RegistrationHelper {
         const otpVisible = await otpInput.isVisible().catch(() => false);
         
         if (!otpVisible) {
-          console.log(`OTP screen did not appear on attempt ${attempt}`);
           await this.closeModal();
           continue;
         }
         
         // Enter OTP
-        console.log('OTP screen appeared - entering OTP');
         await this.registrationPage.enterOTP(TEST_OTP);
         await this.page.waitForTimeout(500);
         
@@ -65,15 +62,12 @@ export class RegistrationHelper {
         // Verify success
         const isSuccess = await this.registrationPage.verifyRegistrationSuccess();
         if (isSuccess) {
-          console.log('✅ Registration successful');
           return { success: true, phoneNumber: phone };
         }
         
-        console.log(`Registration verification failed on attempt ${attempt}`);
         await this.closeModal();
         
       } catch (error) {
-        console.log(`Registration attempt ${attempt} failed:`, error instanceof Error ? error.message : 'Unknown error');
         await this.closeModal();
       }
     }
@@ -124,7 +118,7 @@ export class RegistrationHelper {
           await closeButton.click({ delay: 50 });
           await this.page.waitForTimeout(500);
         } catch (error) {
-          console.log(`⚠️ Unable to click close control (${selector}):`, error instanceof Error ? error.message : error);
+          // Ignore errors
         }
       }
     }

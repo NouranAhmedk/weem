@@ -40,13 +40,11 @@ export class ProductHelper {
       for (let i = 0; i < categories.length; i++) {
         const text = await categories[i].textContent() || '';
         if (text.toLowerCase().includes(preferred.toLowerCase())) {
-          console.log(`Trying preferred category: ${text}`);
           await categories[i].click();
           await this.page.waitForTimeout(2000);
           
           const products = await this.waitForProducts();
           if (products.length > 0) {
-            console.log(`✅ Found ${products.length} products in category: ${text}`);
             return { products, categoryName: text, categoryIndex: i };
           }
         }
@@ -57,14 +55,12 @@ export class ProductHelper {
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       const randomIndex = Math.floor(Math.random() * categories.length);
       const categoryName = await categories[randomIndex].textContent() || 'Unknown';
-      console.log(`Trying random category ${attempt + 1}/${maxAttempts}: ${categoryName}`);
       
       await categories[randomIndex].click();
       await this.page.waitForTimeout(2000);
       
       const products = await this.waitForProducts();
       if (products.length > 0) {
-        console.log(`✅ Found ${products.length} products in category: ${categoryName}`);
         return { products, categoryName, categoryIndex: randomIndex };
       }
       
@@ -92,7 +88,6 @@ export class ProductHelper {
       }
       
       if (attempt < maxAttempts) {
-        console.log(`No products found, attempt ${attempt}/${maxAttempts} - trying scroll...`);
         // Scroll to trigger lazy loading
         await this.page.evaluate(() => window.scrollBy(0, 500));
         await this.page.waitForTimeout(1000);
@@ -118,8 +113,6 @@ export class ProductHelper {
     
     const randomIndex = Math.floor(Math.random() * products.length);
     const productName = await products[randomIndex].textContent() || 'Unknown Product';
-    
-    console.log(`Selected product ${randomIndex + 1}/${products.length}: ${productName}`);
     
     await products[randomIndex].click();
     await this.page.waitForTimeout(2000);

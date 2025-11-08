@@ -55,8 +55,6 @@ export class FavouriteHelper {
    */
   async addToFavourites(maxAttempts = 3): Promise<boolean> {
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-      console.log(`Favourite button click attempt ${attempt}/${maxAttempts}`);
-      
       try {
         const button = await this.findFavouriteButton();
         
@@ -70,36 +68,36 @@ export class FavouriteHelper {
           ).catch(() => null);
           
           await button.click();
-          console.log('Favourite button clicked, waiting for API response...');
+          // console.log('Favourite button clicked, waiting for API response...');
           
           // Wait for the API response
           const response = await responsePromise;
           if (response) {
-            console.log(`API Response: ${response.status()} ${response.url()}`);
+            // console.log(`API Response: ${response.status()} ${response.url()}`);
             // Wait additional time for data to persist
             await this.page.waitForTimeout(3000);
           } else {
-            console.log('No API response detected, waiting anyway...');
+            // console.log('No API response detected, waiting anyway...');
             await this.page.waitForTimeout(5000);
           }
           
           // Check for success indicators
           const success = await this.checkSuccessIndicators();
           if (success) {
-            console.log('✅ Product added to favourites successfully (UI confirmed)');
-            console.log('⏳ Waiting extra time for backend to persist...');
+            // console.log('✅ Product added to favourites successfully (UI confirmed)');
+            // console.log('⏳ Waiting extra time for backend to persist...');
             await this.page.waitForTimeout(3000); // Extra wait for backend
             return true;
           }
         } else {
-          console.log('Favourite button not found');
+          // console.log('Favourite button not found');
           if (attempt < maxAttempts) {
             await this.page.reload();
             await this.page.waitForTimeout(2000);
           }
         }
       } catch (error) {
-        console.log(`Attempt ${attempt} failed:`, error instanceof Error ? error.message : 'Unknown error');
+        // console.log(`Attempt ${attempt} failed:`, error instanceof Error ? error.message : 'Unknown error');
         if (attempt < maxAttempts) {
           await this.page.reload();
           await this.page.waitForTimeout(2000);
@@ -117,17 +115,17 @@ export class FavouriteHelper {
     const favouriteIcon = this.page.locator('[data-eram-test-id="favourites-link"]');
     await favouriteIcon.waitFor({ state: 'visible', timeout: 10000 });
     
-    console.log('Navigating to favourites page...');
+    // console.log('Navigating to favourites page...');
     await favouriteIcon.click();
     
     // Wait for navigation and page load
     await this.page.waitForLoadState('domcontentloaded');
     await this.page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {
-      console.log('Network did not become idle, continuing anyway...');
+      // console.log('Network did not become idle, continuing anyway...');
     });
     
     // Wait for API to load favourites
-    console.log('Waiting for favourites API to load...');
+    // console.log('Waiting for favourites API to load...');
     await this.page.waitForTimeout(5000);
     
     // Check if we see the empty state message
@@ -135,7 +133,7 @@ export class FavouriteHelper {
     const isEmpty = await emptyMessage.isVisible({ timeout: 2000 }).catch(() => false);
     
     if (isEmpty) {
-      console.log('⚠️ Empty state detected, trying page reload...');
+      // console.log('⚠️ Empty state detected, trying page reload...');
       await this.page.reload();
       await this.page.waitForLoadState('domcontentloaded');
       await this.page.waitForTimeout(3000);
@@ -148,11 +146,11 @@ export class FavouriteHelper {
    * @returns Number of items in favourites
    */
   async getFavouritesCount(maxAttempts = 3): Promise<number> {
-    console.log('Looking for favourite items...');
+    // console.log('Looking for favourite items...');
     
     // Try multiple times with increasing waits
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-      console.log(`Attempt ${attempt}/${maxAttempts} to find favourite items`);
+      // console.log(`Attempt ${attempt}/${maxAttempts} to find favourite items`);
       
       // Try each selector
       for (const selector of this.favouriteItemSelectors) {
@@ -160,11 +158,11 @@ export class FavouriteHelper {
         const count = await items.count();
         
         if (count > 0) {
-          console.log(`Checking ${count} items with selector: ${selector}`);
+          // console.log(`Checking ${count} items with selector: ${selector}`);
           
           // For product-name selectors, items ARE the products
           if (selector.includes('product-name') || selector.includes('product-card')) {
-            console.log(`✅ Found ${count} favourite items using selector: ${selector}`);
+            // console.log(`✅ Found ${count} favourite items using selector: ${selector}`);
             return count;
           }
           
@@ -175,22 +173,22 @@ export class FavouriteHelper {
             .count();
           
           if (hasContent > 0) {
-            console.log(`✅ Found ${count} favourite items using selector: ${selector}`);
+            // console.log(`✅ Found ${count} favourite items using selector: ${selector}`);
             return count;
           } else {
-            console.log(`Found ${count} items with selector "${selector}" but no product content (likely navigation elements)`);
+            // console.log(`Found ${count} items with selector "${selector}" but no product content (likely navigation elements)`);
           }
         }
       }
       
       // If not found and not last attempt, wait and try again
       if (attempt < maxAttempts) {
-        console.log(`No items found, waiting ${2000 * attempt}ms before retry...`);
+        // console.log(`No items found, waiting ${2000 * attempt}ms before retry...`);
         await this.page.waitForTimeout(2000 * attempt); // Progressive wait: 2s, 4s, 6s
       }
     }
     
-    console.log('⚠️ No favourite items found after all attempts');
+    // console.log('⚠️ No favourite items found after all attempts');
     return 0;
   }
 
@@ -202,11 +200,11 @@ export class FavouriteHelper {
     const deleteButton = await this.findDeleteButton();
     
     if (!deleteButton) {
-      console.log('⚠️ Delete button not found');
+      // console.log('⚠️ Delete button not found');
       return false;
     }
     
-    console.log('Delete button found, clicking...');
+    // console.log('Delete button found, clicking...');
     await deleteButton.scrollIntoViewIfNeeded();
     await deleteButton.click();
     await this.page.waitForTimeout(2000);
@@ -250,7 +248,7 @@ export class FavouriteHelper {
         const isVisible = await button.isVisible({ timeout: 2000 }).catch(() => false);
         
         if (isVisible) {
-          console.log(`Found favourite button using: ${selector}`);
+          // console.log(`Found favourite button using: ${selector}`);
           return button;
         }
       } catch {
@@ -271,7 +269,7 @@ export class FavouriteHelper {
         const isVisible = await button.isVisible({ timeout: 2000 }).catch(() => false);
         
         if (isVisible) {
-          console.log(`Found delete button using: ${selector}`);
+          // console.log(`Found delete button using: ${selector}`);
           return button;
         }
       } catch {
@@ -297,7 +295,7 @@ export class FavouriteHelper {
       const el = this.page.locator(indicator).first();
       const visible = await el.isVisible({ timeout: 2000 }).catch(() => false);
       if (visible) {
-        console.log(`Success indicator found: ${indicator}`);
+        // console.log(`Success indicator found: ${indicator}`);
         return true;
       }
     }
@@ -317,7 +315,7 @@ export class FavouriteHelper {
     const confirmVisible = await confirmButton.isVisible({ timeout: 2000 }).catch(() => false);
     
     if (confirmVisible) {
-      console.log('Confirmation dialog found, clicking confirm...');
+      // console.log('Confirmation dialog found, clicking confirm...');
       await confirmButton.click();
       await this.page.waitForTimeout(1000);
     }
@@ -333,14 +331,14 @@ export class FavouriteHelper {
       path: `test-results/favourite-${name}.png`, 
       fullPage: true 
     });
-    console.log(`📸 Screenshot saved: test-results/favourite-${name}.png`);
+    // console.log(`📸 Screenshot saved: test-results/favourite-${name}.png`);
   }
 
   /**
    * Debug helper: Log all elements with test IDs on current page
    */
   async debugLogPageElements(): Promise<void> {
-    console.log('\n🔍 DEBUG: All elements with data-eram-test-id:');
+    // console.log('\n🔍 DEBUG: All elements with data-eram-test-id:');
     const allTestIds = await this.page.locator('[data-eram-test-id]').all();
     
     for (let i = 0; i < Math.min(allTestIds.length, 20); i++) {
@@ -349,25 +347,25 @@ export class FavouriteHelper {
       const tagName = await allTestIds[i].evaluate((el) => el.tagName).catch(() => 'unknown');
       
       if (isVisible) {
-        console.log(`  ✓ [${tagName}] ${testId}`);
+        // console.log(`  ✓ [${tagName}] ${testId}`);
       }
     }
     
     // Also check for images (products usually have images)
-    console.log('\n🔍 DEBUG: All images on page:');
+    // console.log('\n🔍 DEBUG: All images on page:');
     const allImages = await this.page.locator('img').all();
-    console.log(`  Found ${allImages.length} images total`);
+    // console.log(`  Found ${allImages.length} images total`);
     
     // Check for any divs/articles that might be products
-    console.log('\n🔍 DEBUG: Checking for product-like structures:');
+    // console.log('\n🔍 DEBUG: Checking for product-like structures:');
     const articles = await this.page.locator('article').count();
     const cardsWithImages = await this.page.locator('div:has(img)').count();
     const listsWithImages = await this.page.locator('[role="listitem"]:has(img)').count();
     
-    console.log(`  - <article> tags: ${articles}`);
-    console.log(`  - <div> with images: ${cardsWithImages}`);
-    console.log(`  - List items with images: ${listsWithImages}`);
-    console.log('');
+    // console.log(`  - <article> tags: ${articles}`);
+    // console.log(`  - <div> with images: ${cardsWithImages}`);
+    // console.log(`  - List items with images: ${listsWithImages}`);
+    // console.log('');
   }
 
   /**
@@ -376,10 +374,10 @@ export class FavouriteHelper {
   async debugLogPageInfo(): Promise<void> {
     const url = this.page.url();
     const title = await this.page.title();
-    console.log(`\n📄 Page Info:`);
-    console.log(`   URL: ${url}`);
-    console.log(`   Title: ${title}`);
-    console.log('');
+    // console.log(`\n📄 Page Info:`);
+    // console.log(`   URL: ${url}`);
+    // console.log(`   Title: ${title}`);
+    // console.log('');
   }
 }
 
