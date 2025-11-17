@@ -89,4 +89,85 @@ export class WeemRegistrationPage extends BasePage {
   async verifyRegistrationSuccess(): Promise<boolean> {
     return await this.isMyProfileVisible();
   }
+
+  /**
+   * Click "Edit phone number" link/button on OTP screen
+   * Tries multiple text variations and roles to find the edit button
+   */
+  async clickEditPhoneNumber(): Promise<void> {
+    // Try different variations of the edit phone number text
+    const possibleTexts = [
+      'Edit phone number',
+      'Edit Phone Number',
+      'EDIT PHONE NUMBER',
+      'Edit phone',
+      'Change phone number',
+      'Change Phone Number',
+      'Edit'
+    ];
+
+    let clicked = false;
+    
+    // First try text-based locators
+    for (const text of possibleTexts) {
+      const textLocator = this.page.getByText(text, { exact: false });
+      if (await this.isVisible(textLocator, 2000)) {
+        await this.click(textLocator);
+        clicked = true;
+        break;
+      }
+    }
+
+    // If text-based search fails, try role-based (link or button)
+    if (!clicked) {
+      for (const text of possibleTexts) {
+        try {
+          const linkLocator = this.page.getByRole('link', { name: new RegExp(text, 'i') });
+          if (await this.isVisible(linkLocator, 2000)) {
+            await this.click(linkLocator);
+            clicked = true;
+            break;
+          }
+        } catch {
+          // Continue to next
+        }
+        
+        try {
+          const buttonLocator = this.page.getByRole('button', { name: new RegExp(text, 'i') });
+          if (await this.isVisible(buttonLocator, 2000)) {
+            await this.click(buttonLocator);
+            clicked = true;
+            break;
+          }
+        } catch {
+          // Continue to next
+        }
+      }
+    }
+
+    // If still not found, try by test ID
+    if (!clicked) {
+      const testIdOptions = ['edit-phone-number', 'edit-phone', 'change-phone-number'];
+      for (const testId of testIdOptions) {
+        const testIdLocator = this.locators.byEramTestId(testId);
+        if (await this.isVisible(testIdLocator, 2000)) {
+          await this.click(testIdLocator);
+          clicked = true;
+          break;
+        }
+      }
+    }
+
+    if (!clicked) {
+      throw new Error('Could not find "Edit phone number" button/link on OTP screen');
+    }
+  }
+
+  /**
+   * Check if phone number input is visible
+   * Used to verify redirect back to phone number entry
+   */
+  async isPhoneInputVisible(): Promise<boolean> {
+    return await this.isVisible(this.locators.byEramTestId('phone-input'), 5000);
+  }
 }

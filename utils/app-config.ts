@@ -18,7 +18,7 @@ export const TEST_OTP = process.env.TEST_OTP || '00000';
 
 // Admin Credentials
 export const ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'weemdev';
-export const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'weemdev';
+export const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'weem123456';
 
 // Phone Number Generation
 export const PHONE_BASE = process.env.PHONE_BASE || '500000';

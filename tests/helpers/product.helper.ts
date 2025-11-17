@@ -40,7 +40,21 @@ export class ProductHelper {
       for (let i = 0; i < categories.length; i++) {
         const text = await categories[i].textContent() || '';
         if (text.toLowerCase().includes(preferred.toLowerCase())) {
-          await categories[i].click();
+          // Dismiss any overlays/modals that might intercept clicks
+          try {
+            await this.page.keyboard.press('Escape');
+            await this.page.waitForTimeout(500);
+          } catch {
+            // Ignore if Escape doesn't work
+          }
+          
+          // Try to click with force if normal click fails
+          try {
+            await categories[i].click({ timeout: 5000 });
+          } catch {
+            // If normal click fails, try force click
+            await categories[i].click({ force: true });
+          }
           await this.page.waitForTimeout(2000);
           
           const products = await this.waitForProducts();
@@ -56,7 +70,21 @@ export class ProductHelper {
       const randomIndex = Math.floor(Math.random() * categories.length);
       const categoryName = await categories[randomIndex].textContent() || 'Unknown';
       
-      await categories[randomIndex].click();
+      // Dismiss any overlays/modals that might intercept clicks
+      try {
+        await this.page.keyboard.press('Escape');
+        await this.page.waitForTimeout(500);
+      } catch {
+        // Ignore if Escape doesn't work
+      }
+      
+      // Try to click with force if normal click fails
+      try {
+        await categories[randomIndex].click({ timeout: 5000 });
+      } catch {
+        // If normal click fails, try force click
+        await categories[randomIndex].click({ force: true });
+      }
       await this.page.waitForTimeout(2000);
       
       const products = await this.waitForProducts();

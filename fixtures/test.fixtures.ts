@@ -8,6 +8,7 @@ import { WeemCartPage } from '../page-objects/weem-cart.page';
 import { AdminLoginPage } from '../page-objects/admin/admin-login.page';
 import { AdminProductsPage } from '../page-objects/admin/admin-products.page';
 import { AdminOrdersPage } from '../page-objects/admin/admin-orders.page';
+import { AdminConsumerWalletsPage } from '../page-objects/admin/admin-consumer-wallets.page';
 import { WeemApi } from '../api/weem-api';
 
 /**
@@ -26,6 +27,7 @@ type TestFixtures = {
   adminLoginPage: AdminLoginPage;
   adminProductsPage: AdminProductsPage;
   adminOrdersPage: AdminOrdersPage;
+  adminConsumerWalletsPage: AdminConsumerWalletsPage;
   
   // API Client
   weemApi: WeemApi;
@@ -79,6 +81,11 @@ export const test = base.extend<TestFixtures>({
   // Admin orders page fixture
   adminOrdersPage: async ({ page }, use) => {
     await use(new AdminOrdersPage(page));
+  },
+
+  // Admin consumer wallets page fixture
+  adminConsumerWalletsPage: async ({ page }, use) => {
+    await use(new AdminConsumerWalletsPage(page));
   },
 
   // API client fixture

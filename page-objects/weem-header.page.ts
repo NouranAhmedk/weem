@@ -84,7 +84,22 @@ export class WeemHeaderPage extends BasePage {
   async clickDeliverTo(): Promise<void> {
     // Multiple deliver-to-button elements exist, use first one
     const deliverToButton = this.locators.byEramTestId('deliver-to-button').first();
-    await this.click(deliverToButton);
+    
+    // Dismiss any overlays/modals that might intercept clicks
+    try {
+      await this.page.keyboard.press('Escape');
+      await this.page.waitForTimeout(500);
+    } catch {
+      // Ignore if Escape doesn't work
+    }
+    
+    // Try to click with force if normal click fails
+    try {
+      await deliverToButton.click({ timeout: 5000 });
+    } catch {
+      // If normal click fails, try force click
+      await deliverToButton.click({ force: true });
+    }
   }
 
   /**

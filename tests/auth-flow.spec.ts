@@ -44,4 +44,20 @@ test.describe('Authentication Flow', () => {
     const errorMessage = page.getByText('Phone number must start with 5 and be 9 digits long');
     await expect(errorMessage).toBeVisible();
   });
+
+  test('should redirect to phone number input when clicking Edit phone number', async ({ registrationPage }) => {
+    const testPhoneNumber = generateRandomPhoneNumber();
+
+    await registrationPage.clickRegisterButton();
+    await registrationPage.enterPhoneNumber(testPhoneNumber);
+    await registrationPage.clickSubmit();
+    await registrationPage.waitForOTPInput();
+    
+    // Click "Edit phone number" link/button
+    await registrationPage.clickEditPhoneNumber();
+
+    // Verify redirect back to phone number input
+    const isPhoneInputVisible = await registrationPage.isPhoneInputVisible();
+    expect(isPhoneInputVisible).toBeTruthy();
+  });
 });

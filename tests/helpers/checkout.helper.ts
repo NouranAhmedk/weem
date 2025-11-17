@@ -145,6 +145,7 @@ export class CheckoutHelper {
 
   /**
    * Get price breakdown from checkout page
+   * Uses multiple methods to extract prices reliably
    */
   async getPriceBreakdown(): Promise<{
     subtotal: number;
@@ -153,43 +154,183 @@ export class CheckoutHelper {
     tax: number;
     total: number;
   }> {
-    const pageText = await this.page.textContent('body') || '';
+    let subtotal = 0;
+    let discount = 0;
+    let delivery = 0;
+    let tax = 0;
+    let total = 0;
 
-    const subtotalPatterns = [
-      /subtotal[:\s]*(\d+\.?\d*)/i,
-      /المجموع[:\s]*(\d+\.?\d*)/i,
-      /products?\s*price[:\s]*(\d+\.?\d*)/i
-    ];
-
-    const discountPatterns = [
-      /discount[:\s]*(\d+\.?\d*)/i,
-      /خصم[:\s]*(\d+\.?\d*)/i
-    ];
-
-    const deliveryPatterns = [
-      /delivery[:\s]*(\d+\.?\d*)/i,
-      /الشحن[:\s]*(\d+\.?\d*)/i
-    ];
-
-    const totalPatterns = [
-      /total[:\s]*(\d+\.?\d*)\s*(?:SAR|SR)/i,
-      /الإجمالي[:\s]*(\d+\.?\d*)\s*(?:SAR|SR|ر\.س)/i
-    ];
-
-    const extract = (patterns: RegExp[]): number => {
-      for (const pattern of patterns) {
-        const match = pageText.match(pattern);
-        if (match) return parseFloat(match[1]);
-      }
-      return 0;
+    // Method 1: Try to find prices by test IDs (most reliable)
+    const testIdSelectors = {
+      subtotal: [
+        '[data-testid*="subtotal" i]',
+        '[data-eram-test-id*="subtotal" i]',
+        '[data-testid*="products-price" i]'
+      ],
+      discount: [
+        '[data-testid*="discount" i]',
+        '[data-eram-test-id*="discount" i]',
+        '[data-testid*="promo-discount" i]'
+      ],
+      delivery: [
+        '[data-testid*="delivery" i]',
+        '[data-eram-test-id*="delivery" i]',
+        '[data-testid*="shipping" i]',
+        '[data-testid*="delivery-fee" i]'
+      ],
+      tax: [
+        '[data-testid*="tax" i]',
+        '[data-eram-test-id*="tax" i]',
+        '[data-testid*="vat" i]'
+      ],
+      total: [
+        '[data-testid*="total" i]',
+        '[data-eram-test-id*="total" i]',
+        '[data-testid*="grand-total" i]'
+      ]
     };
 
+    // Extract subtotal
+    for (const selector of testIdSelectors.subtotal) {
+      try {
+        const element = this.page.locator(selector).first();
+        if (await element.isVisible({ timeout: 1000 }).catch(() => false)) {
+          const text = await element.textContent();
+          const match = text?.match(/(\d+\.?\d*)/);
+          if (match) {
+            subtotal = parseFloat(match[1]);
+            break;
+          }
+        }
+      } catch {}
+    }
+
+    // Extract discount
+    for (const selector of testIdSelectors.discount) {
+      try {
+        const element = this.page.locator(selector).first();
+        if (await element.isVisible({ timeout: 1000 }).catch(() => false)) {
+          const text = await element.textContent();
+          const match = text?.match(/(\d+\.?\d*)/);
+          if (match) {
+            discount = parseFloat(match[1]);
+            break;
+          }
+        }
+      } catch {}
+    }
+
+    // Extract delivery
+    for (const selector of testIdSelectors.delivery) {
+      try {
+        const element = this.page.locator(selector).first();
+        if (await element.isVisible({ timeout: 1000 }).catch(() => false)) {
+          const text = await element.textContent();
+          const match = text?.match(/(\d+\.?\d*)/);
+          if (match) {
+            delivery = parseFloat(match[1]);
+            break;
+          }
+        }
+      } catch {}
+    }
+
+    // Extract tax
+    for (const selector of testIdSelectors.tax) {
+      try {
+        const element = this.page.locator(selector).first();
+        if (await element.isVisible({ timeout: 1000 }).catch(() => false)) {
+          const text = await element.textContent();
+          const match = text?.match(/(\d+\.?\d*)/);
+          if (match) {
+            tax = parseFloat(match[1]);
+            break;
+          }
+        }
+      } catch {}
+    }
+
+    // Extract total
+    for (const selector of testIdSelectors.total) {
+      try {
+        const element = this.page.locator(selector).first();
+        if (await element.isVisible({ timeout: 1000 }).catch(() => false)) {
+          const text = await element.textContent();
+          const match = text?.match(/(\d+\.?\d*)/);
+          if (match) {
+            total = parseFloat(match[1]);
+            break;
+          }
+        }
+      } catch {}
+    }
+
+    // Method 2: Fallback to text-based extraction if test IDs didn't work
+    if (subtotal === 0 || total === 0) {
+      const pageText = await this.page.textContent('body') || '';
+
+      const subtotalPatterns = [
+        /subtotal[:\s]*(\d+\.?\d*)/i,
+        /المجموع[:\s]*(\d+\.?\d*)/i,
+        /products?\s*price[:\s]*(\d+\.?\d*)/i,
+        /items?\s*subtotal[:\s]*(\d+\.?\d*)/i
+      ];
+
+      const discountPatterns = [
+        /discount[:\s]*(\d+\.?\d*)/i,
+        /خصم[:\s]*(\d+\.?\d*)/i,
+        /promo[:\s]*discount[:\s]*(\d+\.?\d*)/i
+      ];
+
+      const deliveryPatterns = [
+        /delivery[:\s]*(\d+\.?\d*)/i,
+        /shipping[:\s]*(\d+\.?\d*)/i,
+        /الشحن[:\s]*(\d+\.?\d*)/i,
+        /delivery\s*fee[:\s]*(\d+\.?\d*)/i
+      ];
+
+      const taxPatterns = [
+        /tax[:\s]*(\d+\.?\d*)/i,
+        /vat[:\s]*(\d+\.?\d*)/i,
+        /ضريبة[:\s]*(\d+\.?\d*)/i
+      ];
+
+      const totalPatterns = [
+        /total[:\s]*(\d+\.?\d*)\s*(?:SAR|SR)/i,
+        /grand\s*total[:\s]*(\d+\.?\d*)/i,
+        /الإجمالي[:\s]*(\d+\.?\d*)\s*(?:SAR|SR|ر\.س)/i,
+        /total[:\s]*(\d+\.?\d*)/i
+      ];
+
+      const extract = (patterns: RegExp[], currentValue: number): number => {
+        if (currentValue > 0) return currentValue; // Use already found value
+        for (const pattern of patterns) {
+          const match = pageText.match(pattern);
+          if (match) return parseFloat(match[1]);
+        }
+        return 0;
+      };
+
+      subtotal = extract(subtotalPatterns, subtotal);
+      discount = extract(discountPatterns, discount);
+      delivery = extract(deliveryPatterns, delivery);
+      tax = extract(taxPatterns, tax);
+      total = extract(totalPatterns, total);
+    }
+
+    // Validate extracted values
+    if (subtotal === 0 || total === 0) {
+      console.warn('⚠️  Could not extract subtotal or total from checkout page');
+      // Take screenshot for debugging
+      await this.page.screenshot({ path: `test-results/price-extraction-failed-${Date.now()}.png`, fullPage: true }).catch(() => {});
+    }
+
     return {
-      subtotal: extract(subtotalPatterns),
-      discount: extract(discountPatterns),
-      delivery: extract(deliveryPatterns),
-      tax: 0, // Extract if needed
-      total: extract(totalPatterns)
+      subtotal: Math.max(0, subtotal),
+      discount: Math.max(0, discount),
+      delivery: Math.max(0, delivery),
+      tax: Math.max(0, tax),
+      total: Math.max(0, total)
     };
   }
 
@@ -297,8 +438,8 @@ export class CheckoutHelper {
     this.outerPaymentFrame = null;
     this.cardPaymentFrame = null;
 
-    const { outer, card } = await this.resolveTapFrames(15000);
-    const frame = card ?? outer;
+    const { outer, card } = await this.resolveTapFrames(20000); // Increased timeout
+    let frame = card ?? outer;
 
     if (!frame) {
       console.log('❌ Payment frames not found');
@@ -312,16 +453,119 @@ export class CheckoutHelper {
       const frameElement = await frame.frameElement();
       if (frameElement) {
         await frameElement.scrollIntoViewIfNeeded();
-        await this.page.waitForTimeout(1000);
+        await this.page.waitForTimeout(2000);
         console.log('✅ Modal scrolled into view');
       }
     } catch (error) {
       console.log('⚠️  Could not scroll modal:', error.message);
     }
 
-    // Log all input elements in the frame for debugging
-    const allInputs = await frame.locator('input').all();
-    console.log(`📄 Found ${allInputs.length} input elements in frame`);
+    // Wait for frame content to load - payment gateways need time to initialize
+    console.log('⏳ Waiting for payment frame content to load...');
+    await this.page.waitForTimeout(5000);
+    
+    // Wait for frame to be ready (check for any input elements)
+    let frameReady = false;
+    for (let attempt = 0; attempt < 10; attempt++) {
+      try {
+        const inputCount = await frame.locator('input').count();
+        if (inputCount > 0) {
+          frameReady = true;
+          console.log(`✅ Frame ready with ${inputCount} inputs after ${(attempt + 1) * 0.5}s`);
+          break;
+        }
+        await this.page.waitForTimeout(500);
+      } catch {
+        await this.page.waitForTimeout(500);
+      }
+    }
+    
+    if (!frameReady) {
+      console.log('⚠️  Frame not ready with inputs, checking all page frames...');
+      // Check ALL frames on the page, not just the one we found
+      const allPageFrames = this.page.frames();
+      console.log(`📋 Found ${allPageFrames.length} total frames on page`);
+      
+      for (let i = 0; i < allPageFrames.length; i++) {
+        const testFrame = allPageFrames[i];
+        if (testFrame.isDetached()) continue;
+        
+        try {
+          const inputCount = await testFrame.locator('input').count();
+          if (inputCount > 0) {
+            console.log(`  Frame ${i}: ${inputCount} inputs found`);
+            // Check if this frame has card-related inputs
+            const hasCardInput = await testFrame.locator('input[id*="card" i], input[name*="card" i], input[placeholder*="card" i]').count().then(c => c > 0).catch(() => false);
+            if (hasCardInput || inputCount >= 3) {
+              frame = testFrame;
+              console.log(`✅ Found better frame with ${inputCount} inputs (has card input: ${hasCardInput})`);
+              break;
+            }
+          }
+        } catch {
+          // Continue
+        }
+      }
+    }
+
+    // Check for nested iframes - Tap payments often has nested iframes
+    let workingFrame = frame;
+    try {
+      // First wait a bit more for nested frames to load
+      await this.page.waitForTimeout(2000);
+      
+      const nestedFrames = await frame.locator('iframe').all();
+      console.log(`📦 Found ${nestedFrames.length} nested iframes in payment frame`);
+      
+      // Try to find card inputs in nested frames
+      for (let i = 0; i < nestedFrames.length; i++) {
+        try {
+          const nestedFrameHandle = await nestedFrames[i].elementHandle();
+          if (nestedFrameHandle) {
+            const nestedFrame = await nestedFrameHandle.contentFrame();
+            if (nestedFrame && !nestedFrame.isDetached()) {
+              // Wait for nested frame to load
+              await this.page.waitForTimeout(1000);
+              const inputs = await nestedFrame.locator('input').count();
+              console.log(`  Nested frame ${i}: ${inputs} inputs found`);
+              if (inputs > 0) {
+                workingFrame = nestedFrame;
+                console.log(`✅ Using nested frame ${i} with ${inputs} inputs`);
+                break;
+              }
+            }
+          }
+        } catch {
+          // Continue
+        }
+      }
+      
+      // Also check all frames again after waiting (some frames load dynamically)
+      const inputCount = await workingFrame.locator('input').count();
+      if (inputCount === 0) {
+        console.log('⚠️  Working frame has no inputs, checking all page frames again...');
+        const allPageFrames = this.page.frames();
+        for (const testFrame of allPageFrames) {
+          if (testFrame.isDetached() || testFrame === outer) continue;
+          try {
+            const inputCount = await testFrame.locator('input').count();
+            if (inputCount >= 3) {
+              workingFrame = testFrame;
+              console.log(`✅ Switched to frame with ${inputCount} inputs`);
+              break;
+            }
+          } catch {
+            // Continue
+          }
+        }
+      }
+    } catch (error) {
+      console.log('⚠️  Could not check nested frames:', error.message);
+    }
+
+    // Log all input elements in the working frame for debugging
+    const allInputs = await workingFrame.locator('input').all();
+    console.log(`📄 Found ${allInputs.length} input elements in working frame`);
 
     for (let i = 0; i < allInputs.length; i++) {
       const inputInfo = await allInputs[i].evaluate((el: HTMLInputElement) => ({
@@ -365,7 +609,7 @@ export class CheckoutHelper {
     // Try to find and fill card number
     let cardNumberFilled = false;
     for (const selector of cardNumberSelectors) {
-      const input = frame.locator(selector).first();
+      const input = workingFrame.locator(selector).first();
       const exists = await input.count().then(c => c > 0);
       if (exists) {
         console.log(`📝 Found card number input with selector: ${selector}`);
@@ -424,7 +668,7 @@ export class CheckoutHelper {
 
     // ALSO fill the hidden cardNumber field to trigger validation
     console.log('🔧 Filling hidden cardNumber field for validation...');
-    const hiddenCardInput = frame.locator('input#cardNumber');
+    const hiddenCardInput = workingFrame.locator('input#cardNumber');
     const hiddenExists = await hiddenCardInput.count().then(c => c > 0);
     if (hiddenExists) {
       await hiddenCardInput.evaluate((el: HTMLInputElement, value: string) => {
@@ -447,7 +691,7 @@ export class CheckoutHelper {
     // Try to find and fill expiry
     let expiryFilled = false;
     for (const selector of expirySelectors) {
-      const input = frame.locator(selector).first();
+      const input = workingFrame.locator(selector).first();
       const exists = await input.count().then(c => c > 0);
       if (exists) {
         console.log(`📝 Found expiry input with selector: ${selector}`);
@@ -495,7 +739,7 @@ export class CheckoutHelper {
     // Try to find and fill CVV
     let cvvFilled = false;
     for (const selector of cvvSelectors) {
-      const input = frame.locator(selector).first();
+      const input = workingFrame.locator(selector).first();
       const exists = await input.count().then(c => c > 0);
       if (exists) {
         console.log(`📝 Found CVV input with selector: ${selector}`);
@@ -554,7 +798,7 @@ export class CheckoutHelper {
       ];
 
       for (const selector of cardholderSelectors) {
-        const input = frame.locator(selector).first();
+        const input = workingFrame.locator(selector).first();
         const exists = await input.count().then(c => c > 0);
         if (exists) {
           console.log(`📝 Found cardholder input with selector: ${selector}`);
@@ -605,7 +849,7 @@ export class CheckoutHelper {
     console.log('🔄 Triggering blur event to signal form completion...');
     try {
       // Find any filled input in the frame and blur it
-      const lastInput = frame.locator('input#cvv_input, input[placeholder*="name" i]').last();
+      const lastInput = workingFrame.locator('input#cvv_input, input[placeholder*="name" i]').last();
       const exists = await lastInput.count().then(c => c > 0);
       if (exists) {
         await this.page.waitForTimeout(1000);  // Wait 1 sec before tabbing
@@ -619,7 +863,7 @@ export class CheckoutHelper {
 
     // Inspect buttons inside the payment frame for debugging
     try {
-      const frameButtons = await frame.locator('button').all();
+      const frameButtons = await workingFrame.locator('button').all();
       console.log(`📊 Payment frame currently has ${frameButtons.length} button elements`);
       for (let i = 0; i < Math.min(frameButtons.length, 10); i++) {
         const info = await frameButtons[i].evaluate((el) => ({
@@ -638,7 +882,7 @@ export class CheckoutHelper {
     }
 
     try {
-      const frameRoleButtons = await frame.locator('[role="button"]').all();
+      const frameRoleButtons = await workingFrame.locator('[role="button"]').all();
       console.log(`📊 Payment frame currently has ${frameRoleButtons.length} [role="button"] elements`);
       for (let i = 0; i < Math.min(frameRoleButtons.length, 10); i++) {
         const info = await frameRoleButtons[i].evaluate((el) => ({
@@ -654,7 +898,7 @@ export class CheckoutHelper {
     }
 
     try {
-      const frameHtml = await frame.evaluate(() => document.body.innerHTML);
+      const frameHtml = await workingFrame.evaluate(() => document.body.innerHTML);
       console.log('📄 Payment frame HTML snippet:', frameHtml.slice(0, 1000));
     } catch (error) {
       console.log('⚠️  Unable to dump frame HTML:', error.message);
@@ -964,13 +1208,20 @@ export class CheckoutHelper {
       if (!outer) {
         for (const selector of this.outerPaymentFrameSelectors) {
           const locator = this.page.locator(selector).first();
-          const handle = await locator.elementHandle({ timeout: 500 }).catch(() => null);
+          const handle = await locator.elementHandle({ timeout: 1000 }).catch(() => null);
           if (!handle) {
             continue;
           }
 
           const frame = await handle.contentFrame();
           if (frame && !frame.isDetached()) {
+            // Wait for frame to load content
+            try {
+              await frame.waitForLoadState('domcontentloaded', { timeout: 2000 }).catch(() => {});
+              await frame.waitForLoadState('networkidle', { timeout: 2000 }).catch(() => {});
+            } catch {
+              // Continue even if load state fails
+            }
             outer = frame;
             this.outerPaymentFrame = frame;
             break;
@@ -980,23 +1231,57 @@ export class CheckoutHelper {
 
       if (!card) {
         if (outer) {
-          const innerHandles = await outer.locator('iframe').elementHandles().catch(() => [] as ElementHandle<HTMLIFrameElement>[]);
-          for (const handle of innerHandles) {
-            const frame = await handle.contentFrame();
-            if (!frame || frame.isDetached()) {
-              continue;
+          // Wait a bit for nested iframes to appear
+          await this.page.waitForTimeout(1000);
+          
+          // Try to find all iframes in the page context first (might be direct children)
+          const allFrames = this.page.frames();
+          for (const frame of allFrames) {
+            if (frame === outer || frame.isDetached()) continue;
+            
+            // Check if this frame has card inputs
+            try {
+              const inputCount = await frame.locator('input').count();
+              if (inputCount > 0) {
+                // Check if it has card-related inputs
+                const hasCardInput = await frame.locator('input[id*="card" i], input[name*="card" i], input[placeholder*="card" i]').count().then(c => c > 0).catch(() => false);
+                if (hasCardInput || inputCount >= 3) {
+                  card = frame;
+                  this.cardPaymentFrame = frame;
+                  console.log(`✅ Found card frame with ${inputCount} inputs`);
+                  break;
+                }
+              }
+            } catch {
+              // Continue
             }
+          }
 
-            const hasCardInputs = await frame
-              .locator('#card-main-container, input#card_input_mini, input[name="card_input_mini"], input[id="card_input_mini"]')
-              .first()
-              .isVisible({ timeout: 100 })
-              .catch(() => false);
+          // Also check nested iframes within outer frame
+          if (!card) {
+            const innerHandles = await outer.locator('iframe').elementHandles().catch(() => [] as ElementHandle<HTMLIFrameElement>[]);
+            for (const handle of innerHandles) {
+              const frame = await handle.contentFrame();
+              if (!frame || frame.isDetached()) {
+                continue;
+              }
 
-            if (hasCardInputs) {
-              card = frame;
-              this.cardPaymentFrame = frame;
-              break;
+              // Wait for frame content
+              try {
+                await frame.waitForLoadState('domcontentloaded', { timeout: 2000 }).catch(() => {});
+              } catch {
+                // Continue
+              }
+
+              const inputCount = await frame.locator('input').count().catch(() => 0);
+              console.log(`  Checking nested frame: ${inputCount} inputs found`);
+              
+              if (inputCount > 0) {
+                card = frame;
+                this.cardPaymentFrame = frame;
+                console.log(`✅ Found card frame in nested iframe with ${inputCount} inputs`);
+                break;
+              }
             }
           }
         }
@@ -1004,13 +1289,19 @@ export class CheckoutHelper {
         if (!card) {
           for (const selector of this.cardPaymentFrameSelectors) {
             const locator = this.page.locator(selector).first();
-            const handle = await locator.elementHandle({ timeout: 500 }).catch(() => null);
+            const handle = await locator.elementHandle({ timeout: 1000 }).catch(() => null);
             if (!handle) {
               continue;
             }
 
             const frame = await handle.contentFrame();
             if (frame && !frame.isDetached()) {
+              // Wait for frame to load
+              try {
+                await frame.waitForLoadState('domcontentloaded', { timeout: 2000 }).catch(() => {});
+              } catch {
+                // Continue
+              }
               card = frame;
               this.cardPaymentFrame = frame;
               break;
@@ -1020,7 +1311,7 @@ export class CheckoutHelper {
       }
 
       if (!outer || !card) {
-        await this.page.waitForTimeout(150);
+        await this.page.waitForTimeout(500);
       }
     }
 
@@ -1028,6 +1319,7 @@ export class CheckoutHelper {
   }
 
   private async findPayButtonInFrame(frame: Frame, timeout = 2000): Promise<Locator | null> {
+    // 1) Try known provider-specific selectors first
     for (const selector of this.payNowSelectors) {
       const button = frame.locator(selector).first();
       const visible = await button.isVisible({ timeout }).catch(() => false);
@@ -1038,6 +1330,55 @@ export class CheckoutHelper {
       const enabled = await button.isEnabled().catch(() => false);
       if (enabled) {
         return button;
+      }
+    }
+
+    // 2) Heuristic: look for any visible, enabled button with "pay"/"checkout"/"confirm" text
+    const candidateButtons = await frame.locator('button, [role="button"]').all();
+    for (const btn of candidateButtons) {
+      try {
+        const visible = await btn.isVisible({ timeout }).catch(() => false);
+        if (!visible) continue;
+
+        const enabled = await btn.isEnabled().catch(() => false);
+        if (!enabled) continue;
+
+        const text = (await btn.textContent())?.trim() || '';
+        const lower = text.toLowerCase();
+
+        // Skip obvious non-pay actions
+        if (/(cancel|close|back|رجوع|إلغاء|اغلاق)/i.test(text)) {
+          continue;
+        }
+
+        // Likely pay/confirm button in Arabic or English
+        if (/(pay|checkout|confirm|complete|ادفع|الدفع|إتمام|شراء)/i.test(text)) {
+          console.log('✅ Heuristic pay button candidate found with text:', text);
+          return btn;
+        }
+      } catch {
+        // Ignore individual button errors and continue
+      }
+    }
+
+    // 3) Last resort: first visible & enabled button in the frame (excluding cancel/close/back)
+    for (const btn of candidateButtons) {
+      try {
+        const visible = await btn.isVisible({ timeout }).catch(() => false);
+        if (!visible) continue;
+
+        const enabled = await btn.isEnabled().catch(() => false);
+        if (!enabled) continue;
+
+        const text = (await btn.textContent())?.trim() || '';
+        if (/(cancel|close|back|رجوع|إلغاء|اغلاق)/i.test(text)) {
+          continue;
+        }
+
+        console.log('✅ Fallback pay button candidate chosen with text:', text);
+        return btn;
+      } catch {
+        // Continue to next candidate
       }
     }
 
@@ -1081,6 +1422,74 @@ export class CheckoutHelper {
     }
 
     return false;
+  }
+
+  /**
+   * Get wallet balance from profile page
+   */
+  async getWalletBalance(): Promise<number | null> {
+    const balanceSelectors = [
+      '[data-eram-test-id*="balance"]',
+      '[data-testid*="balance"]',
+      '*[class*="balance"]',
+      '*:has-text("Balance")',
+      '*:has-text("balance")'
+    ];
+
+    // Try to find balance-specific elements
+    for (const selector of balanceSelectors) {
+      try {
+        const elements = this.page.locator(selector);
+        const count = await elements.count();
+        for (let i = 0; i < count; i++) {
+          const element = elements.nth(i);
+          const visible = await element.isVisible({ timeout: 2000 }).catch(() => false);
+          if (visible) {
+            const text = await element.textContent().catch(() => '');
+            // Look for balance pattern with SAR or currency symbol, or near "balance" text
+            // Avoid matching phone numbers (10+ digits) or IDs
+            const balanceMatch = text?.match(/(?:balance[:\s]*|SAR[:\s]*|ر\.س[:\s]*)(-?\d+\.?\d{0,2})/i);
+            if (balanceMatch) {
+              const value = parseFloat(balanceMatch[1]);
+              // Sanity check: balance should be reasonable (not a phone number or ID)
+              if (value >= -1000000 && value <= 1000000) {
+                return value;
+              }
+            }
+            // Also try standalone number near "balance" keyword
+            const standaloneMatch = text?.match(/-?\d+\.?\d{0,2}/);
+            if (standaloneMatch && text && text.toLowerCase().includes('balance')) {
+              const value = parseFloat(standaloneMatch[0]);
+              if (value >= -1000000 && value <= 1000000) {
+                return value;
+              }
+            }
+          }
+        }
+      } catch {
+        // Continue to next selector
+      }
+    }
+
+    // If not found in balance-specific elements, search page text more carefully
+    const pageText = await this.page.textContent('body').catch(() => '');
+    // Look for balance pattern: "Balance: 100.00" or "100.00 SAR" near "balance"
+    const balancePatterns = [
+      /balance[:\s]*(-?\d+\.?\d{0,2})\s*(?:SAR|SR|ر\.س)?/i,
+      /(?:SAR|SR|ر\.س)[:\s]*(-?\d+\.?\d{0,2})\s*(?:balance)?/i
+    ];
+    
+    for (const pattern of balancePatterns) {
+      const match = pageText?.match(pattern);
+      if (match) {
+        const value = parseFloat(match[1]);
+        if (value >= -1000000 && value <= 1000000) {
+          return value;
+        }
+      }
+    }
+
+    return null;
   }
 }
 
